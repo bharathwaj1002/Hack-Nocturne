@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Shield,
   AlertTriangle,
@@ -30,7 +30,9 @@ function App() {
     null
   );
   const [showReportModal, setShowReportModal] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
 
+  // Transaction Data
   const [transactions] = useState<Transaction[]>([
     {
       id: "1",
@@ -55,21 +57,35 @@ function App() {
     },
   ]);
 
+  // Fetch CSRF Token
+  useEffect(() => {
+    const csrfToken =
+      document.cookie
+        .split(";")
+        .find((cookie) => cookie.trim().startsWith("csrftoken="))
+        ?.split("=")[1] || "";
+    setCsrfToken(csrfToken);
+  }, []);
+
   const handleTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const amountNum = parseFloat(amount);
 
     try {
       const response = await axios.post(
         "http://localhost:8000/api/check-suspicious-upi",
-        { upiId }
+        { upiId },
+        {
+          headers: {
+            "X-CSRFToken": csrfToken, // Attach CSRF token
+          },
+          withCredentials: true, // Ensure cookies are included with the request
+        }
       );
       if (response.data.isSuspicious) {
         if (amountNum > 10000) {
           setAlertType("amount");
           setShowAlert(true);
-          return;
         } else {
           setAlertType("suspicious");
           setShowAlert(true);
