@@ -67,6 +67,7 @@ browser_encoder.fit(['Chrome', 'Firefox', 'Safari', 'Edge'])
 screen_res_encoder.fit(['1920x1080', '1366x768', '1280x1024', '1440x900'])
 rendering_engine_encoder.fit(['Blink', 'Gecko', 'WebKit', 'Trident'])
 
+
 def extract_features(data):
     features = []
 
@@ -84,19 +85,11 @@ def extract_features(data):
 
     # Click intervals
     click_intervals = data.get('click_intervals', [])
-    if click_intervals:
-        intervals = [click.get('interval', 0) for click in click_intervals]
-        features.append(np.mean(intervals) if intervals else 0)
-    else:
-        features.append(0)
+    features.append(np.mean([click.get('interval', 0) for click in click_intervals]) if click_intervals else 0)
 
     # Keypress intervals
     keypress_intervals = data.get('keypress_intervals', [])
-    if keypress_intervals:
-        intervals = [keypress.get('interval', 0) for keypress in keypress_intervals]
-        features.append(np.mean(intervals) if intervals else 0)
-    else:
-        features.append(0)
+    features.append(np.mean([keypress.get('interval', 0) for keypress in keypress_intervals]) if keypress_intervals else 0)
 
     # Scroll positions
     scroll_positions = data.get('scroll_positions', [])
@@ -104,31 +97,33 @@ def extract_features(data):
 
     # Idle times
     idle_times = data.get('idle_times', [])
-    if idle_times:
-        features.append(np.mean(idle_times))
-    else:
-        features.append(0)
+    features.append(np.mean(idle_times) if idle_times else 0)
 
-    # Additional features
+    # Additional device info features
     device_info = {
         'os': data.get('os', ''),
         'browser': data.get('browser', ''),
         'screen_resolution': data.get('screen_resolution', ''),
         'color_depth': data.get('color_depth', 0),
-        'installed_plugins': data.get('installed_plugins', 0),
-        'extensions': data.get('extensions', 0),
+        'installed_plugins': data.get('installed_plugins', []),  # Default to empty list
+        'extensions': data.get('installed_extensions', []),    # Default to empty list
         'rendering_engine': data.get('browser_rendering_engine', '')
     }
     
+    # Ensure installed_plugins and extensions are lists
+    if not isinstance(device_info['installed_plugins'], list):
+        device_info['installed_plugins'] = []
+    if not isinstance(device_info['extensions'], list):
+        device_info['extensions'] = []
 
-    # Encode categorical features
+    # Encode categorical features with safe fallback
     features.extend([
         os_encoder.transform([device_info['os']])[0] if device_info['os'] in os_encoder.classes_ else 0,
         browser_encoder.transform([device_info['browser']])[0] if device_info['browser'] in browser_encoder.classes_ else 0,
         screen_res_encoder.transform([device_info['screen_resolution']])[0] if device_info['screen_resolution'] in screen_res_encoder.classes_ else 0,
         device_info['color_depth'],
-        device_info['installed_plugins'],
-        device_info['extensions'],
+        len(device_info['installed_plugins']),  # Use len safely now
+        len(device_info['extensions']),        # Use len safely now
         rendering_engine_encoder.transform([device_info['rendering_engine']])[0] if device_info['rendering_engine'] in rendering_engine_encoder.classes_ else 0
     ])
 
@@ -137,7 +132,7 @@ def extract_features(data):
         features.append(0)
 
     assert len(features) == 17, "Feature extraction did not produce 17 features"
-    
+
     return features
 
 
